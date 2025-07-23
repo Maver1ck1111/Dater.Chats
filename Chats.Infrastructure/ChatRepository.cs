@@ -22,34 +22,167 @@ namespace Chats.Infrastructure
             _chatsCollection = database.GetCollection<Chat>("Chats");
         }
 
-        public Task<Result> AddMessagesToChatAsync(Guid chatID, IEnumerable<Message> messages)
+        public async Task<Result> AddMessagesToChatAsync(Guid chatID, IEnumerable<Message> messages)
         {
-            throw new NotImplementedException();
+            if(chatID == Guid.Empty)
+            {
+               _logger.LogError("Chat ID cannot be empty.");
+               return Result.Failure(400, "Chat ID cannot be empty.");
+            }
+
+            var filter = Builders<Chat>.Filter.Eq(x => x.ID, chatID);
+            var update = Builders<Chat>.Update.PushEach(x => x.Messages, messages);
+            
+            var result = await _chatsCollection.UpdateOneAsync(filter, update);
+
+            if(result.MatchedCount == 0)
+            {
+                _logger.LogError("Chat not found with ID: {ChatID}", chatID);
+                return Result.Failure(404, "Chat not found");
+            }
+
+            _logger.LogInformation("Messages added to chat with ID: {ChatID}", chatID);
+
+            return Result.Success();
         }
 
-        public Task<Result<Guid>> CreateChatAsync(IEnumerable<Guid> usersID)
+        public async Task<Result<Guid>> CreateChatAsync(IEnumerable<Guid> usersID)
         {
-            throw new NotImplementedException();
+            if(usersID == null || !usersID.Any() || usersID.Any(id => id == Guid.Empty))
+            {
+                _logger.LogError("Incorrect users ID");
+                return Result<Guid>.Failure(400, "Incorrect users ID");
+            }
+
+            Chat chat = new Chat
+            {
+                ID = Guid.NewGuid(),
+                UsersId = usersID.ToList(),
+                Messages = new List<Message>()
+            };
+
+            await _chatsCollection.InsertOneAsync(chat);
+
+            _logger.LogInformation("Chat created with ID: {ChatID}", chat.ID);
+            return Result<Guid>.Success(chat.ID);
         }
 
-        public Task<Result> DeleteMessageAsync(Guid chatID, Guid messageID)
+        public async Task<Result> DeleteMessageAsync(Guid chatID, Guid messageID)
         {
-            throw new NotImplementedException();
+            if(chatID == Guid.Empty || messageID == Guid.Empty)
+            {
+                _logger.LogError("Chat ID or Message ID cannot be empty.");
+                return Result.Failure(400, "Chat ID or Message ID cannot be empty");
+            }
+
+            var filter = Builders<Chat>.Filter.Eq(x => x.ID, chatID);
+            var update = Builders<Chat>.Update.PullFilter(x => x.Messages, m => m.ID == messageID);
+
+            var result = await _chatsCollection.UpdateOneAsync(filter, update);
+
+            if(result.MatchedCount == 0)
+            {
+                _logger.LogError("Chat not found with ID: {ChatID}", chatID);
+                return Result.Failure(404, "Chat not found");
+            }
+
+            if(result.ModifiedCount == 0)
+            {
+                _logger.LogError("Message not found with ID: {MessageID}", messageID);
+                return Result.Failure(404, "Message not found");
+            }
+
+            _logger.LogInformation("Message with ID: {MessageID} deleted from chat with ID: {ChatID}", messageID, chatID);
+            return Result.Success();
         }
 
-        public Task<Result<Guid>> FindChatsByUserAsync(Guid usersID)
+        public async Task<Result<IEnumerable<Guid>>> FindChatsByUserAsync(Guid usersID)
         {
-            throw new NotImplementedException();
+            if(usersID == Guid.Empty)
+            {
+                _logger.LogError("User ID cannot be empty.");
+                return Result<IEnumerable<Guid>>.Failure(400, "User ID cannot be empty.");
+            }
+
+            var filter = Builders<Chat>.Filter.AnyEq(x => x.UsersId, usersID);
+
+            var result = await (await _chatsCollection.FindAsync(filter)).ToListAsync();
+
+            if(result.Count == 0)
+            {
+                _logger.LogInformation("No chats found for user with ID: {UserID}", usersID);
+                return Result<IEnumerable<Guid>>.Failure(404, "Chats not found");
+            }
+
+            _logger.LogInformation("Chats with userID: {UserID} founded", usersID);
+            return Result<IEnumerable<Guid>>.Success(result.Select(x => x.ID));
         }
 
-        public Task<Result<IEnumerable<Message>>> GetMessagesFromChatAsync(Guid chatID, int skip, int take)
+        public async Task<Result<IEnumerable<Message>>> GetMessagesFromChatAsync(Guid chatID, int skip, int take)
         {
-            throw new NotImplementedException();
+            if(skip < 0 || take <= 0)
+            {
+                _logger.LogError("Skip and take parameters must be non-negative and take must be greater than zero.");
+                return Result<IEnumerable<Message>>.Failure(400, "Invalid pagination parameters");
+            }
+
+            if(chatID == Guid.Empty)
+            {
+                _logger.LogError("Chat ID cannot be empty.");
+                return Result<IEnumerable<Message>>.Failure(400, "Chat ID cannot be empty.");
+            }
+
+            var filter = Builders<Chat>.Filter.Eq(x => x.ID, chatID);
+
+            var chat = await _chatsCollection.Find(filter).Project(c => c.Messages.Skip(skip).Take(take)).FirstOrDefaultAsync();
+
+            if(chat == null)
+            {
+                _logger.LogError("Chat not found with ID: {ChatID}", chatID);
+                return Result<IEnumerable<Message>>.Failure(404, "Chat not found");
+            }
+
+            _logger.LogInformation("Messages retrieved from chat with ID: {ChatID}", chatID);
+            return Result<IEnumerable<Message>>.Success(chat);
         }
 
-        public Task<Result> UpdateMessageAsync(Guid chatID, Message message)
+        public async Task<Result> UpdateMessageAsync(Guid chatID, Message message)
         {
-            throw new NotImplementedException();
+            if(chatID == Guid.Empty)
+            {
+                _logger.LogError("Chat ID cannot be empty.");
+                return Result.Failure(400, "Chat ID cannot be empty.");
+            }
+
+            if(message == null || message.ID == Guid.Empty)
+            {
+                _logger.LogError("Message cannot be null and must have a valid ID and content.");
+                return Result.Failure(400, "Message cannot be null and must have a valid");
+            }
+
+            var chatExists = await _chatsCollection.Find(c => c.ID == chatID).AnyAsync();
+            if (!chatExists)
+            {
+                _logger.LogError("Chat with id: {ChatID} not found", chatID);
+                return Result.Failure(404, "Chat not found");
+            }
+
+            var filter = Builders<Chat>.Filter.And(
+                Builders<Chat>.Filter.Eq(c => c.ID, chatID),
+                Builders<Chat>.Filter.Eq("Messages.ID", message.ID)
+            );
+
+            var update = Builders<Chat>.Update.Set("Messages.$", message);
+            var result = await _chatsCollection.UpdateOneAsync(filter, update);
+
+            if(result.ModifiedCount == 0)
+            {
+                _logger.LogError("Message with id: {MessageId} not found", message.ID);
+                return Result.Failure(404, "Message not found");
+            }
+
+            _logger.LogInformation("Message with id: {MessageID} updated", message.ID);
+            return Result.Success();
         }
     }
 }

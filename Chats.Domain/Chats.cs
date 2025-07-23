@@ -11,7 +11,6 @@ namespace Chats.Domain
     public class Chat
     {
         [BsonId]
-        [BsonGuidRepresentation(GuidRepresentation.Standard)]
         public Guid ID { get; set; }
 
         [BsonElement("usersId")]

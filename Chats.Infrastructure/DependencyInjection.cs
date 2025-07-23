@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,9 @@ namespace Chats.Infrastructure
         {
             string connectionString = Environment.GetEnvironmentVariable("ConnectionString")!;
             string databaseName = Environment.GetEnvironmentVariable("DatabaseName")!;
+
+            var settings = MongoClientSettings.FromConnectionString(connectionString);
+            settings.GuidRepresentation = GuidRepresentation.Standard;
 
             services.AddSingleton<IMongoClient>(serviceProvider =>
             {

@@ -3,6 +3,7 @@ using Chats.Domain;
 using Chats.Infrastructure;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using Moq;
 using System;
@@ -51,8 +52,7 @@ namespace Chats.Tests
 
         public RepositoryTests()
         {
-            _database = new MongoClient(Environment.GetEnvironmentVariable("ConnectionString")!)
-                .GetDatabase(Environment.GetEnvironmentVariable("DatabaseName")!);
+            _database = DbConnection.GetMongoDataBase();
 
             _chats = _database.GetCollection<Chat>("Chats");
         }
@@ -66,11 +66,11 @@ namespace Chats.Tests
 
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result<Guid> result = await repository.FindChatsByUserAsync(chat.UsersId[0]);
+            Result<IEnumerable<Guid>> result = await repository.FindChatsByUserAsync(chat.UsersId[0]);
 
             result.IsSuccess.Should().BeTrue();
 
-            result.Value.Should().Be(chat.ID);
+            result.Value?.First().Should().Be(chat.ID);
         }
 
         [Fact]
@@ -78,11 +78,11 @@ namespace Chats.Tests
         {
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result<Guid> result = await repository.FindChatsByUserAsync(Guid.NewGuid());
+            Result<IEnumerable<Guid>> result = await repository.FindChatsByUserAsync(Guid.NewGuid());
 
             result.IsSuccess.Should().BeFalse();
             result.StatusCode.Should().Be(404);
-            result.ErrorMessage.Should().Be("Chat not found");
+            result.ErrorMessage.Should().Be("Chats not found");
         }
 
         [Fact]
@@ -101,8 +101,8 @@ namespace Chats.Tests
             result.Value.First().Text.Should().Be("First message");
             result.Value.Last().Text.Should().Be("Second message");
 
-            result.Value.First().Timestamp.Should().BeCloseTo(chat.Messages.First().Timestamp, TimeSpan.FromSeconds(3));
-            result.Value.Last().Timestamp.Should().BeCloseTo(chat.Messages.Last().Timestamp, TimeSpan.FromSeconds(3));
+            result.Value.First().Timestamp.ToLocalTime().Should().BeCloseTo(chat.Messages.First().Timestamp.ToLocalTime(), TimeSpan.FromSeconds(3));
+            result.Value.Last().Timestamp.ToLocalTime().Should().BeCloseTo(chat.Messages.Last().Timestamp.ToLocalTime(), TimeSpan.FromSeconds(3));
         }
 
         [Fact]
@@ -248,7 +248,7 @@ namespace Chats.Tests
         {
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result result = await repository.UpdateMessageAsync(Guid.NewGuid(), new Message());
+            Result result = await repository.UpdateMessageAsync(Guid.NewGuid(), new Message() { ID = Guid.NewGuid() });
 
             result.IsSuccess.Should().BeFalse();
             result.StatusCode.Should().Be(404);
@@ -308,9 +308,13 @@ namespace Chats.Tests
         [Fact]
         public async Task DeleteMessageAsync_ShouldReturnNotFound_InccorectMessageID()
         {
+            Chat chat = CreateFactory();
+
+            await _chats.InsertOneAsync(chat);
+
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result result = await repository.DeleteMessageAsync(Guid.NewGuid(), Guid.NewGuid());
+            Result result = await repository.DeleteMessageAsync(chat.ID, Guid.NewGuid());
 
             result.IsSuccess.Should().BeFalse();
             result.StatusCode.Should().Be(404);
