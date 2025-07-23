@@ -160,26 +160,23 @@ namespace Chats.Infrastructure
                 return Result.Failure(400, "Message cannot be null and must have a valid");
             }
 
-            var chatExists = await _chatsCollection.Find(c => c.ID == chatID).AnyAsync();
-            if (!chatExists)
+            var chat = await (await _chatsCollection.FindAsync(c => c.ID == chatID)).FirstOrDefaultAsync();
+            if (chat == null)
             {
                 _logger.LogError("Chat with id: {ChatID} not found", chatID);
                 return Result.Failure(404, "Chat not found");
             }
 
-            var filter = Builders<Chat>.Filter.And(
-                Builders<Chat>.Filter.Eq(c => c.ID, chatID),
-                Builders<Chat>.Filter.Eq("Messages.ID", message.ID)
-            );
-
-            var update = Builders<Chat>.Update.Set("Messages.$", message);
-            var result = await _chatsCollection.UpdateOneAsync(filter, update);
-
-            if(result.ModifiedCount == 0)
+            var messageIndex = chat.Messages.FindIndex(m => m.ID == message.ID);
+            if (messageIndex == -1)
             {
                 _logger.LogError("Message with id: {MessageId} not found", message.ID);
                 return Result.Failure(404, "Message not found");
             }
+
+            chat.Messages[messageIndex] = message;
+
+            await _chatsCollection.ReplaceOneAsync(c => c.ID == chatID, chat);
 
             _logger.LogInformation("Message with id: {MessageID} updated", message.ID);
             return Result.Success();
