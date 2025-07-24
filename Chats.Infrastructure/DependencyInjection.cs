@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Chats.Application.RepositoryContracts;
+using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using System;
@@ -29,6 +30,8 @@ namespace Chats.Infrastructure
                 var client = provider.GetRequiredService<IMongoClient>();
                 return client.GetDatabase(databaseName);
             });
+
+            services.AddScoped<IChatRepository, ChatRepository>();
 
             return services;
         }
