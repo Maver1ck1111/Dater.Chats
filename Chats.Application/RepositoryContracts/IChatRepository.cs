@@ -9,7 +9,7 @@ namespace Chats.Application.RepositoryContracts
 {
     public interface IChatRepository
     {
-        Task<Result<IEnumerable<Guid>>> FindChatsByUserAsync(Guid usersID);
+        Task<Result<IEnumerable<Guid>>> FindCompanionsByUserAsync(Guid usersID);
         Task<Result<IEnumerable<Message>>> GetMessagesFromChatAsync(Guid chatID, int skip, int take);
         Task<Result<Guid>> CreateChatAsync(IEnumerable<Guid> usersID);
         Task<Result> AddMessagesToChatAsync(Guid chatID, IEnumerable<Message> messages);

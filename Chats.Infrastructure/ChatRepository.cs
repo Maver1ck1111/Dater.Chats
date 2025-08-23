@@ -96,7 +96,7 @@ namespace Chats.Infrastructure
             return Result.Success();
         }
 
-        public async Task<Result<IEnumerable<Guid>>> FindChatsByUserAsync(Guid usersID)
+        public async Task<Result<IEnumerable<Guid>>> FindCompanionsByUserAsync(Guid usersID)
         {
             if(usersID == Guid.Empty)
             {
@@ -114,8 +114,10 @@ namespace Chats.Infrastructure
                 return Result<IEnumerable<Guid>>.Failure(404, "Chats not found");
             }
 
+            var companionIDs = result.SelectMany(x => x.UsersId).Where(x => x != usersID);
+
             _logger.LogInformation("Chats with userID: {UserID} founded", usersID);
-            return Result<IEnumerable<Guid>>.Success(result.Select(x => x.ID));
+            return Result<IEnumerable<Guid>>.Success(companionIDs);
         }
 
         public async Task<Result<IEnumerable<Message>>> GetMessagesFromChatAsync(Guid chatID, int skip, int take)

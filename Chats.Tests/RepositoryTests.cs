@@ -58,7 +58,7 @@ namespace Chats.Tests
         }
 
         [Fact]
-        public async Task FindChatByUsersAsync_ShouldReturnCorrectValue()
+        public async Task FindCompanionsByUserAsync_ShouldReturnCorrectValue()
         {
             Chat chat = CreateFactory();
 
@@ -66,19 +66,21 @@ namespace Chats.Tests
 
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result<IEnumerable<Guid>> result = await repository.FindChatsByUserAsync(chat.UsersId[0]);
+            Guid userID = chat.UsersId[0];
+
+            Result<IEnumerable<Guid>> result = await repository.FindCompanionsByUserAsync(userID);
 
             result.IsSuccess.Should().BeTrue();
 
-            result.Value?.First().Should().Be(chat.ID);
+            result.Value?.Should().BeEquivalentTo(chat.UsersId.Where(x => x != userID));
         }
 
         [Fact]
-        public async Task FindChatByUsersAsync_ShouldReturnNotFound()
+        public async Task FindCompanionsByUserAsync_ShouldReturnNotFound()
         {
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result<IEnumerable<Guid>> result = await repository.FindChatsByUserAsync(Guid.NewGuid());
+            Result<IEnumerable<Guid>> result = await repository.FindCompanionsByUserAsync(Guid.NewGuid());
 
             result.IsSuccess.Should().BeFalse();
             result.StatusCode.Should().Be(404);
