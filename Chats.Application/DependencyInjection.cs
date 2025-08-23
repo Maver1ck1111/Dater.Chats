@@ -1,4 +1,5 @@
-﻿using Chats.Application.RepositoryContracts;
+﻿using Chats.Application.HttpClintsContracts;
+using Chats.Application.RepositoryContracts;
 using Chats.Application.Services;
 using Chats.Application.ServicesContracts;
 using Microsoft.Extensions.DependencyInjection;

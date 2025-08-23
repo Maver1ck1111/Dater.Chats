@@ -1,4 +1,5 @@
-﻿using Chats.Application.RepositoryContracts;
+﻿using Chats.Application.HttpClintsContracts;
+using Chats.Application.RepositoryContracts;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -32,6 +33,11 @@ namespace Chats.Infrastructure
             });
 
             services.AddScoped<IChatRepository, ChatRepository>();
+
+            services.AddHttpClient<IProfileInfoProvider, ProfileInfoProvider>(client =>
+            {
+                client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("ExternalURI")!);
+            });
 
             return services;
         }
