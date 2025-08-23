@@ -23,6 +23,7 @@
     <ProjectReference Include="..\Chats.Application\Chats.Application.csproj" />
     <ProjectReference Include="..\Chats.Domain\Chats.Domain.csproj" />
     <ProjectReference Include="..\Chats.Infrastructure\Chats.Infrastructure.csproj" />
+    <ProjectReference Include="..\Chats.WebApi\Chats.WebApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

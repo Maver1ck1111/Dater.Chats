@@ -8,7 +8,7 @@ namespace Chats.Application.DTOs
 {
     public class ProfileDTO
     {
-        public Guid ID { get; set; }
-        public string Name { get; set; }
+        public Guid AccountID { get; set; }
+        public string Name { get; set; } = null!;
     }
 }

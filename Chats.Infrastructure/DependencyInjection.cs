@@ -1,5 +1,6 @@
 ﻿using Chats.Application.HttpClintsContracts;
 using Chats.Application.RepositoryContracts;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -13,7 +14,7 @@ namespace Chats.Infrastructure
 {
     public static class DependencyInjection
     {
-        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
+        public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
             string connectionString = Environment.GetEnvironmentVariable("ConnectionString")!;
             string databaseName = Environment.GetEnvironmentVariable("DatabaseName")!;
@@ -34,10 +35,12 @@ namespace Chats.Infrastructure
 
             services.AddScoped<IChatRepository, ChatRepository>();
 
-            services.AddHttpClient<IProfileInfoProvider, ProfileInfoProvider>(client =>
-            {
-                client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("ExternalURI")!);
-            });
+            //services.AddHttpClient<IProfileInfoProvider, ProfileInfoProvider>(client =>
+            //{
+            //    client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("ExternalURI")!);
+            //});
+
+            services.AddHttpClient<IProfileInfoProvider, ProfileInfoProvider>();
 
             return services;
         }

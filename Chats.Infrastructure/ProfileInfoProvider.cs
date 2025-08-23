@@ -16,15 +16,22 @@ namespace Chats.Infrastructure
         public ProfileInfoProvider(HttpClient httpClient, ILogger<ProfileInfoProvider> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public async Task<Result<IEnumerable<ProfileDTO>>> GetProfilesInfoAsync(IEnumerable<Guid> usersId)
         {
+            if (usersId == null || !usersId.Any() || usersId.Any(id => id == Guid.Empty))
+            {
+                _logger.LogError("Incorrect users ID provided for profile info retrieval.");
+                return Result<IEnumerable<ProfileDTO>>.Failure(400, "Incorrect users ID provided for profile info retrieval.");
+            }
+
             List<ProfileDTO> profiles = new List<ProfileDTO>();
                  
             foreach (var id in usersId)
             {
-                var result = await _httpClient.GetAsync($"profile/{id}");
+                var result = await _httpClient.GetAsync($"http://localhost:5050/api/profile/{id}");
 
                 if (!result.IsSuccessStatusCode)
                 {
@@ -33,7 +40,7 @@ namespace Chats.Infrastructure
                 }
                 else
                 {
-                    var body = await result.Content.ReadAsStringAsync();
+                    string body = await result.Content.ReadAsStringAsync();
 
                     if (string.IsNullOrEmpty(body))
                     {
@@ -41,7 +48,12 @@ namespace Chats.Infrastructure
                         continue;
                     }
 
-                    var profileResponse = JsonSerializer.Deserialize<ProfileDTO>(body);
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    var profileResponse = JsonSerializer.Deserialize<ProfileDTO>(body, options);
 
                     profiles.Add(new ProfileDTO
                     {
