@@ -96,12 +96,12 @@ namespace Chats.Infrastructure
             return Result.Success();
         }
 
-        public async Task<Result<IEnumerable<Guid>>> FindCompanionsByUserAsync(Guid usersID)
+        public async Task<Result<IEnumerable<(Guid, Guid)>>> FindCompanionsChatsByUserAsync(Guid usersID)
         {
             if(usersID == Guid.Empty)
             {
                 _logger.LogError("User ID cannot be empty.");
-                return Result<IEnumerable<Guid>>.Failure(400, "User ID cannot be empty.");
+                return Result<IEnumerable<(Guid, Guid)>>.Failure(400, "User ID cannot be empty.");
             }
 
             var filter = Builders<Chat>.Filter.AnyEq(x => x.UsersId, usersID);
@@ -111,13 +111,18 @@ namespace Chats.Infrastructure
             if(result.Count == 0)
             {
                 _logger.LogInformation("No chats found for user with ID: {UserID}", usersID);
-                return Result<IEnumerable<Guid>>.Failure(404, "Chats not found");
+                return Result<IEnumerable<(Guid, Guid)>>.Failure(404, "Chats not found");
             }
 
-            var companionIDs = result.SelectMany(x => x.UsersId).Where(x => x != usersID);
+            var companionsChats = result
+                .SelectMany(chat => chat.UsersId
+                        .Where(u => u != usersID)
+                        .Select(companionID => (chat.ID, companionID)));
+
+            int length = companionsChats.Count();
 
             _logger.LogInformation("Chats with userID: {UserID} founded", usersID);
-            return Result<IEnumerable<Guid>>.Success(companionIDs);
+            return Result<IEnumerable<(Guid, Guid)>>.Success(companionsChats);
         }
 
         public async Task<Result<IEnumerable<Message>>> GetMessagesFromChatAsync(Guid chatID, int skip, int take)

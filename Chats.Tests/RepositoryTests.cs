@@ -68,7 +68,7 @@ namespace Chats.Tests
 
             Guid userID = chat.UsersId[0];
 
-            Result<IEnumerable<Guid>> result = await repository.FindCompanionsByUserAsync(userID);
+            Result<IEnumerable<Guid>> result = await repository.FindCompanionsChatsByUserAsync(userID);
 
             result.IsSuccess.Should().BeTrue();
 
@@ -80,7 +80,7 @@ namespace Chats.Tests
         {
             var repository = new ChatRepository(_database, _logger.Object);
 
-            Result<IEnumerable<Guid>> result = await repository.FindCompanionsByUserAsync(Guid.NewGuid());
+            Result<IEnumerable<Guid>> result = await repository.FindCompanionsChatsByUserAsync(Guid.NewGuid());
 
             result.IsSuccess.Should().BeFalse();
             result.StatusCode.Should().Be(404);

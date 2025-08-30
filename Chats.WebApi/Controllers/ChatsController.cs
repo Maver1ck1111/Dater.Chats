@@ -21,7 +21,7 @@ namespace Chats.WebApi.Controllers
         }
 
         [HttpGet("getChats/{userID}")]
-        public async Task<ActionResult<IEnumerable<ProfileDTO>?>> GetChatsByUserID(Guid userID)
+        public async Task<ActionResult<IEnumerable<(Guid, ProfileDTO)>?>> GetChatsByUserID(Guid userID)
         {
             if(userID == Guid.Empty || userID == null)
             {
@@ -29,13 +29,7 @@ namespace Chats.WebApi.Controllers
                 return BadRequest("Invalid user id");
             }
 
-            //await _chatsRepository.CreateChatAsync(new List<Guid>()
-            //{
-            //    Guid.Parse("86CFA874-ACC9-456E-901B-7A5F6CC8DC33"),
-            //    Guid.Parse("164a4a36-4656-4099-b4ae-b083587e5512")
-            //});
-
-            Result<IEnumerable<Guid>> getChatsResult = await _chatsRepository.FindCompanionsByUserAsync(userID);
+            Result<IEnumerable<(Guid, Guid)>> getChatsResult = await _chatsRepository.FindCompanionsChatsByUserAsync(userID);
             
             if(!getChatsResult.IsSuccess)
             {
@@ -49,7 +43,7 @@ namespace Chats.WebApi.Controllers
                 return NotFound("Chats not found");
             }
 
-            Result<IEnumerable<ProfileDTO>> getProfileInfoResponse = await _profileInfoProvider.GetProfilesInfoAsync(getChatsResult.Value);
+            Result<IEnumerable<ProfileDTO>> getProfileInfoResponse = await _profileInfoProvider.GetProfilesInfoAsync(getChatsResult.Value.Select(x => x.Item2));
 
             if (!getProfileInfoResponse.IsSuccess)
             {
@@ -63,7 +57,19 @@ namespace Chats.WebApi.Controllers
                 return BadRequest("Incorrect users id");
             }
 
-            return Ok(getProfileInfoResponse.Value);
+            var companions = getChatsResult.Value.ToList();
+            var profiles = getProfileInfoResponse.Value.ToList();
+
+            var result = companions
+                .Join(
+                    profiles,
+                    c => c.Item2,
+                    p => p.AccountID,
+                    (c, p) => new { ChatID = c.Item1, Profile = p }
+                )
+                .ToList();
+
+            return Ok(result);
         }
 
     }
