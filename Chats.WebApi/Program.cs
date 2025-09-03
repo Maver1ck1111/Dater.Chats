@@ -2,6 +2,8 @@ using Chats.WebApi.Hubs;
 using Chats.Application;
 using Chats.Infrastructure;
 using Microsoft.Extensions.Options;
+using Chats.Domain;
+using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,22 +12,11 @@ builder.Services.AddControllers();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+builder.Services.AddSingleton(new ConcurrentDictionary<Guid, List<Message>>());
+
 builder.Services.AddSignalR();
 
-builder.Services.AddCors(opt =>
-{
-    opt.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://127.0.0.1:3000") 
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials(); 
-    });
-});
-
 var app = builder.Build();
-
-app.UseCors("AllowFrontend");
 
 app.MapControllers();
 
