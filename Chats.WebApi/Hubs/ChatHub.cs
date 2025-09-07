@@ -9,8 +9,8 @@ namespace Chats.WebApi.Hubs
     public class ChatHub : Hub
     {
         private readonly IChatRepository _chatRepository;
-        private readonly ConcurrentDictionary<Guid, List<Message>> _chatActivity;
-        public ChatHub(IChatRepository chatRepository, ConcurrentDictionary<Guid, List<Message>> chatActivity)
+        private readonly ConcurrentDictionary<Guid, ConcurrentBag<Message>> _chatActivity;
+        public ChatHub(IChatRepository chatRepository, ConcurrentDictionary<Guid, ConcurrentBag<Message>> chatActivity)
         {
             _chatRepository = chatRepository;
             _chatActivity = chatActivity;
@@ -18,17 +18,18 @@ namespace Chats.WebApi.Hubs
         public async Task JoinChat(string chatID)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, chatID);
-            _chatActivity.TryAdd(Guid.Parse(chatID), new List<Message>());
+            _chatActivity.TryAdd(Guid.Parse(chatID), new ConcurrentBag<Message>());
         }
 
         public async Task LeaveChat(string chatID)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatID);
 
-            if (_chatActivity.ContainsKey(Guid.Parse(chatID)) && _chatActivity[Guid.Parse(chatID)].Count > 0)
+            var id = Guid.Parse(chatID);
+            if (_chatActivity.TryGetValue(id, out var bag) && bag.Count > 0)
             {
-                await _chatRepository.AddMessagesToChatAsync(Guid.Parse(chatID), _chatActivity[Guid.Parse(chatID)]);
-                _chatActivity[Guid.Parse(chatID)].Clear();
+                await _chatRepository.AddMessagesToChatAsync(id, bag);
+                _chatActivity[id] = new ConcurrentBag<Message>();
             }
         }
 
@@ -36,15 +37,17 @@ namespace Chats.WebApi.Hubs
         {
             await Clients.Group(chatID).SendAsync("ReceiveMessage", message);
 
-            if (_chatActivity.ContainsKey(Guid.Parse(chatID)))
-            {
-                _chatActivity[Guid.Parse(chatID)].Add(message);
-            }
+            Guid id = Guid.Parse(chatID);
 
-            if(_chatActivity[Guid.Parse(chatID)].Count >= 10)
+            if(_chatActivity.TryGetValue(id, out var bag))
             {
-                _chatRepository.AddMessagesToChatAsync(Guid.Parse(chatID), _chatActivity[Guid.Parse(chatID)]);
-                _chatActivity[Guid.Parse(chatID)].Clear();
+                bag.Add(message);
+
+                if(bag.Count >= 10)
+                {
+                    await _chatRepository.AddMessagesToChatAsync(id, bag);
+                    _chatActivity[id] = new ConcurrentBag<Message>();
+                }
             }
         }
     }

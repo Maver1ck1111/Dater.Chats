@@ -12,7 +12,7 @@ builder.Services.AddControllers();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
-builder.Services.AddSingleton(new ConcurrentDictionary<Guid, List<Message>>());
+builder.Services.AddSingleton<ConcurrentDictionary<Guid, ConcurrentBag<Message>>>();
 
 builder.Services.AddSignalR();
 
